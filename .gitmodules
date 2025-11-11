@@ -1,0 +1,3 @@
+[submodule "libdspl-2.0"]
+	path = libdspl-2.0
+	url = https://gitverse.ru/dsplib/libdspl-2.0
