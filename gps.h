@@ -1,6 +1,7 @@
 #ifndef GPS_H
 #define GPS_H
 
+#include <cstring>
 #include <string>
 #include <vector>
 #include <complex>
@@ -10,6 +11,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <memory>
+#include <atomic>
 
 extern "C" {
 #include "dspl.h"
@@ -75,7 +77,7 @@ namespace gps {
 			if (!file.is_open() || !file.good())
 				return "cant open file";
 
-			file.seekg(0, std::ios_base::_Seekend);
+			file.seekg(0, std::ios_base::end);
 			auto byte_size = static_cast<size_t>(file.tellg());
 			//elements = iqs = complex values
 			const size_t elements = byte_size / sizeof(T) / 2;
@@ -85,7 +87,7 @@ namespace gps {
 			size_t load_size = elements / parts;
 			size_t leftover = elements  - load_size * parts;
 
-			file.seekg(0, std::ios_base::_Seekbeg);
+			file.seekg(0, std::ios_base::beg);
 			std::unique_ptr<T[]> nums_as_type(new T[load_size * 2]);
 
 			for (size_t i = 0; i < parts; i++) {

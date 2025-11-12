@@ -4,19 +4,18 @@
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
-#include <imgui/imstb_rectpack.h>
-#include <imgui/imgui_internal.h>
+#include <imstb_rectpack.h>
+#include <imgui_internal.h>
 
 #include <implot.h>
 #include <implot_internal.h>
 
-#include <glfw3.h>
+#include <GLFW/glfw3.h>
 
-#include <gl/GL.h>
+#include "GL/gl.h"
 
 #include "gps.h"
 #include <thread>
-#include <Windows.h>
 //#include "dspl.h"
 
 //extern "C" {
