@@ -1,6 +1,8 @@
 #ifndef GPS_RESULT_H
 #define GPS_RESULT_H
 
+#include <cstring>
+
 namespace gps {
 
 	static int cntr = 0;

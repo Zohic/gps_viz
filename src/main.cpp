@@ -14,14 +14,15 @@
 
 #include "GL/gl.h"
 
-#include "gps.h"
-#include <thread>
-//#include "dspl.h"
+#include "gps/gps.h"
 
-//extern "C" {
-//    void* dspl_load();
-//    void dspl_free(void*);
-//}
+#include <thread>
+#include <atomic>
+
+extern "C"
+{
+    #include "dspl.h"
+}
 
 #define IMGUI_IMPL_OPENGL_ES3
 

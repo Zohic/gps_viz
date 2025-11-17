@@ -62,7 +62,21 @@ set(IMPLOT_SOURCES
 
 add_subdirectory(${GLFW_PATH})
 
-set(APP_SOURCES main.cpp gps.cpp gps.h result.h)
+set(GPS_INCLIDE_DIR "./include")
+
+set(APP_HEADERS 
+${GPS_INCLIDE_DIR}/gps/result.h 
+${GPS_INCLIDE_DIR}/gps/gps_utils.h 
+${GPS_INCLIDE_DIR}/gps/data_proc.h 
+${GPS_INCLIDE_DIR}/gps/detector.h)
+
+set(GPS_SOURCE_DIR "./src")
+set(APP_SOURCES 
+${GPS_SOURCE_DIR}/gps.cpp
+${GPS_SOURCE_DIR}/detector.cpp
+${GPS_SOURCE_DIR}/main.cpp) 
+
+set(APP_SOURCES ${APP_HEADERS} ${APP_SOURCES})
 set(DSLP_DIR "${CMAKE_SOURCE_DIR}/libdspl-2.0/_release")
 set(DSPL_SOURCES 
 "${DSLP_DIR}/dspl.c" 
@@ -96,6 +110,7 @@ target_include_directories("${APP_NAME}" PRIVATE
 "${GLFW_PATH}"
 "${GLFW_PATH}/include"
 "${OPENGL_INCLUDE_PATH}"
-"${DSLP_DIR}")
+"${DSLP_DIR}"
+"${GPS_INCLIDE_DIR}")
 
 #add_subdirectory("./libdspl_built")

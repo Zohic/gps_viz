@@ -4,3 +4,4 @@ build/
 .vscode/
 signals/
 libdspl-2.0/
+*imgui.ini
