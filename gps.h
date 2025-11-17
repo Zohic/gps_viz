@@ -133,8 +133,12 @@ namespace gps {
 		size_t iqCount() const {
 			return _data.size() / 2;
 		}
-		void fillData(size_t iqOffset, size_t iqCount, double* out_data) const {
+		result<bool> fillData(size_t iqOffset, size_t iqCount, double* out_data) const {
+			if(iqOffset + iqCount > _data.size())
+				return cat("requested to much: ", iqOffset, "+", iqCount, " of ", _data.size()).c_str();
 			memcpy(out_data, _data.data() + iqOffset * sizeof(double) * 2, iqCount * sizeof(double) * 2);
+			
+			return true;
 		}
 	};
 
@@ -153,28 +157,39 @@ namespace gps {
 	struct system_params {
 		double Fs = 1.023e6;
 		size_t accum_length = ca_length;
-		ptrdiff_t accum_count = -1;
+		ptrdiff_t accum_count = 30;
 		range<double> comp_freq = { -6000, 6000, 100 };
 		range<int> checkCA = { 1, 10, 1 };
 	};
 	
 
 	class detector {
-		const system_params& params;
-		std::unordered_set<ca_code, ca_code_hash> ca_code_cache;
 
 		using store1 = std::vector<double>;
 		using store2 = std::vector<store1>;
 		using store3 = std::vector<store2>;
+
+		const system_params& params;
+		std::unordered_set<ca_code, ca_code_hash> ca_code_cache;
+		std::unordered_map<size_t, store1> code_corr_map_cache;
+		
+		bool map_cached = false;
+		store1 corr_map_cache;
+		
 		
 		store3 ca_corrs;
-		store1 best_dfs;
+		std::vector<size_t> best_corrs;
+		std::vector<size_t> best_dfs;
 
 		result<ca_code> GetCACode(unsigned int number);
 
 	public:
 		detector(const system_params& p);
 		result<bool> CalcCACorrs(const data_proc& data);
+		const store1& getCorrFunc(size_t ca_code);
+		const store1& getCAMap();
+		const std::vector<double>& getCorrFunc(size_t ca_code, size_t freq_shift);
+		
 
 	};
 

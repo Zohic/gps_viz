@@ -2,3 +2,5 @@
 out/
 build/
 .vscode/
+signals/
+libdspl-2.0/

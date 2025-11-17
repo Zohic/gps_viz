@@ -68,6 +68,8 @@ namespace ImGui {
         window->DrawList->AddCircleFilled(ImVec2(pos.x + circleEnd - o1, bb.Min.y + r), r, bg_col);
         window->DrawList->AddCircleFilled(ImVec2(pos.x + circleEnd - o2, bb.Min.y + r), r, bg_col);
         window->DrawList->AddCircleFilled(ImVec2(pos.x + circleEnd - o3, bb.Min.y + r), r, bg_col);
+
+        return true;
     }
 }
 
@@ -91,21 +93,28 @@ float win_rel_y(float v) {
 
 static unsigned int back_color = ImColor(10, 100, 100).operator unsigned int();
 static unsigned int front_color = ImColor(100, 200, 250).operator unsigned int();
-const char* filename = "C:\\Users\\zohich\\Desktop\\school\\master_degree\\gps\\30_08_2018__19_38_33_x02_1ch_16b_15pos_90000ms.dat";
+char* filename = nullptr;
 
 struct app_logic {
     gps::data_proc data_proc;
     std::atomic<float> progress;
+    std::atomic<bool> corrs_ready{false};
     bool loading = false;
     std::vector<char> ca_code;
     char* ca_code_selected;
     gps::system_params _params {};
 
+    int graph_type;
+
     gps::detector _detector;
+    gps::result<bool> _result = true;
+    int cur_task = -1;
 
     app_logic(): _detector(_params) {
         _params.accum_count = 20;
         ca_code_selected = new char[3];
+        ca_code_selected[0] = '1';
+        ca_code_selected[1] = '\0';
     }
     bool CaCodeWindow(bool* open, ImGuiIO& io) {
         
@@ -119,7 +128,7 @@ struct app_logic {
         ImGui::End();
         
         ImGui::Begin("CA Code", open);
-        
+
         if (ImGui::BeginCombo("ca code number", ca_code_selected, ImGuiComboFlags_NoArrowButton))
         {
             for (int n = 1; n <= 37; n++)
@@ -153,6 +162,95 @@ struct app_logic {
         return true;
     }
 
+    void CorrsWindowOption(){
+        ImGui::Begin("typed corrs");
+
+        if (ImGui::BeginCombo("graph type", "graph type", ImGuiComboFlags_NoArrowButton))
+        {
+                bool is_selected = false;
+                if (ImGui::Selectable("per ca", false))
+                    graph_type = 1;
+                if (is_selected)
+                    ImGui::SetItemDefaultFocus();
+
+                if (ImGui::Selectable("best df", false))
+                    graph_type = 2;
+                if (is_selected)
+                    ImGui::SetItemDefaultFocus();
+            
+            ImGui::EndCombo();
+        }
+
+        if(graph_type == 1)
+            CorrsWindow();
+        else if(graph_type == 2)
+            BestDFWindow();
+        
+        ImGui::End();
+    }
+
+    void BestDFWindow(){
+        ImGui::Begin("corrs per df");
+
+        if(ImPlot::BeginPlot("corrs for ca_codes")){
+            
+            ImPlot::PlotHeatmap<double>("heat_corrs df", 
+                _detector.getCAMap().data(), 
+                _params.checkCA.count(), 2 * _params.accum_length + 1, 
+                0, 0, nullptr, 
+                ImPlotPoint(_params.checkCA.min, -static_cast<long long>(_params.accum_length)),
+                ImPlotPoint(_params.checkCA.max, static_cast<long long>(_params.accum_length + 1)));
+            ImPlot::EndPlot();
+        }
+
+        ImGui::End();
+    }
+
+    void CorrsWindow(){
+        ImGui::Begin("corrs");
+
+        if (ImGui::BeginCombo("ca code number", ca_code_selected, ImGuiComboFlags_NoArrowButton))
+        {
+            for (int n = _params.checkCA.min; n <= _params.checkCA.max; n++)
+            {
+                auto n_s = std::to_string(n);
+                char* cur_v = new char[n_s.size()+1];
+                memcpy(cur_v, n_s.data(), n_s.size());
+                cur_v[n_s.size()] = '\0';
+
+                bool is_selected = std::strcmp(ca_code_selected, cur_v);
+                if (ImGui::Selectable(std::to_string(n).c_str(), is_selected))
+                    strcpy(ca_code_selected, cur_v);
+                if (is_selected)
+                    ImGui::SetItemDefaultFocus();
+
+                delete[] cur_v;
+            }
+            ImGui::EndCombo();
+        }
+        int ca_ind = -1;
+
+        try{
+            ca_ind = std::stoi(ca_code_selected);
+        }catch(const std::invalid_argument& err){
+            ImGui::Text("invalid ca number: %s", err.what());
+            ImGui::End();
+            return;
+        }
+
+        if(ImPlot::BeginPlot("corrs for ca_code")){
+            ImPlot::PlotHeatmap<double>("heat_corrs", 
+                _detector.getCorrFunc(ca_ind).data(), 
+                _params.comp_freq.count(), 2 * _params.accum_length + 1, 
+                0, 0, nullptr, 
+                ImPlotPoint(_params.comp_freq.min, -static_cast<long long>(_params.accum_length)),
+                ImPlotPoint(_params.comp_freq.max, static_cast<long long>(_params.accum_length + 1)));
+            ImPlot::EndPlot();
+        }
+
+        ImGui::End();
+    }
+
     bool main_logic(bool* open, ImGuiIO& io) {
         // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
         //if (false)
@@ -161,14 +259,24 @@ struct app_logic {
 
         ImGui::Begin("Start menu", open);    // Create a window called "Hello, world!" and append into it.
 
+        if(!_result.isOk()){
+            ImGui::Text("error accured: %s", _result.GetError());
+        }
+        
         if (loading) {
-            ImGui::Text(gps::cat("loading from file: ", progress.load()).c_str());
+            if(cur_task == 1)
+                ImGui::Text("%s", gps::cat("loading from file: ", progress.load()).c_str());
+            
+            if(cur_task == 2)
+                ImGui::Text("%s", gps::cat("calculating correlations: ", progress.load()).c_str());
+            
             ImGui::BufferingBar("loading data", progress, ImVec2(300, 10), back_color, front_color);
         }
 
         if (!loading) {
             if (ImGui::Button("Load File")) {
                 loading = true;
+                cur_task = 1;
                 std::thread load_thread([this]() {
                     auto res = data_proc.load<int16_t>(filename, 30, [this](size_t done, size_t total) {
                         float v = (float)done / total;
@@ -180,13 +288,16 @@ struct app_logic {
                         //std::cout << gps::cat("done reading: ", v, "%\n");
                         });
                     if (!res.isOk())
-                        std::cout << res.GetError();
+                        loading = false;
+                        _result = std::move(res);
                     });
                 load_thread.detach();
             }
             if (ImGui::Button("detect")) {
-                std::thread load_thread([this]() {_detector.CalcCACorrs(data_proc); });
+                std::thread load_thread([this]() {this->_result = _detector.CalcCACorrs(data_proc); });
                 load_thread.join();
+                if(_result.isOk())
+                    corrs_ready.store(true);
             }
         }
 
@@ -204,7 +315,10 @@ struct app_logic {
         }*/
 
         ImGui::End();
-        
+
+        if(corrs_ready.load())
+            CorrsWindowOption();
+
         CaCodeWindow(open, io);
 
         return true;
@@ -216,8 +330,20 @@ struct app_logic {
 // Main code
 int main(int argc, char** argv)
 {
+
+    
     auto ca_code = gps::GetCACodeFast(1, 1);
-    void* dspl_lib = dspl_load();
+    char* lp = NULL;
+    if(argc > 1)
+    {
+        lp = new char[strlen(argv[1]) + 1];
+        strcpy(lp, argv[1]);
+        if(argc > 2){
+            filename = new char[strlen(argv[2]) + 1];
+            strcpy(filename, argv[2]);
+        }
+    }
+    void* dspl_lib = dspl_load(lp);
 
     if (!dspl_lib)
         return 1;
@@ -307,6 +433,16 @@ int main(int argc, char** argv)
     ImVec4 clear_color = ImVec4(0.0f, 0.0f, 0.1f, 1.00f);
 
     app_logic app;
+
+    ImVec4* clrmap = new ImVec4[1024];
+    for(size_t k = 0; k < 1024; k++){
+        float v = (float)k/1024;
+        clrmap[k] = ImVec4(v, v, v, 1.0f);
+    }
+
+
+    auto colormapindex = ImPlot::AddColormap("myclr", clrmap, 1024);
+    ImPlot::GetCurrentContext()->Style.Colormap = colormapindex;
 
     // Main loop
 
