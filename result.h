@@ -3,6 +3,8 @@
 
 namespace gps {
 
+	static int cntr = 0;
+
 	template<typename T>
 	class result {
 		union RESULT_UNION {
@@ -26,6 +28,9 @@ namespace gps {
 			}
 		} _res;
 		bool status = false;
+
+		int _id = cntr++;
+
 		static char* make_copy_str(const char* str) {
 			int len = strlen(str) + 1;
 			char* temp = new char[len];
@@ -44,10 +49,25 @@ namespace gps {
 			if (r.status)
 				_res.value = std::move(r.GetValue());
 			else {
-				_res.err_msg = r._res.err_msg;
-				r._res.err_msg = nullptr;
+				_res.err_msg = make_copy_str(r.GetError());
 			}
 		}
+
+		result<T>& operator=(result<T>&& r) noexcept {
+			bool was_status = status;
+
+			status = r.status;
+			if (r.status)
+				_res.value = std::move(r.GetValue());
+			else {
+				if(r.GetError() != nullptr)
+					_res.err_msg = make_copy_str(r.GetError());
+				else 
+					_res.err_msg = "invalid move";
+			}
+			return *this;
+		}
+
 		result(T&& val) : _res(std::forward<T>(val)), status(true) {
 
 		}
